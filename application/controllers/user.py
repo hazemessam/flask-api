@@ -4,19 +4,28 @@ from flask import request, jsonify, abort
 from json import loads
 
 
-# Get all users
+
+def paginate_users(users, page):
+    users_per_page = 5
+    start = (page - 1) * users_per_page
+    end = start + users_per_page
+    current_users = [user.format() for user in users]
+    return current_users[start:end]
+
+
+# Get users
 @app.route('/api/users')
 def get_users():
+    users = User.query.order_by(User.id).all()
     page = request.args.get('page', 1, type=int)
-    start = (page - 1) * 5
-    end = start + 5
+    current_users = paginate_users(users, page)
     
-    users_query = User.query.all()
-    users = [user.format() for user in users_query]
-    
+    if len(current_users) == 0:
+        return abort(404)
+
     return jsonify({
         'success': True,
-        'users': users[start:end],
+        'users': current_users,
         'total_users': len(users)
     })
 
@@ -25,15 +34,12 @@ def get_users():
 @app.route('/api/users/<int:id>')
 def get_user(id):
     user = User.query.get(id)
-    body = None
-    if user:
-        body = {
-            'success': True,
-            'user':user.format()
-        }
-    else:
-        body = {'success': False}
-    return jsonify(body)
+    if not user:
+        return abort(404)
+    return jsonify({
+        'success': True,
+        'user':user.format()
+    })
 
 
 # Add new user
@@ -45,7 +51,10 @@ def add_user():
         name = request.form.get('name')
         user = User(name=name)
         user.create()
-        body = user.format()
+        body = {
+            'success': True, 
+            'user': user.format()
+        }
     except Exception as e:
         error = True
         db.session.rollback()
@@ -66,7 +75,7 @@ def update_user(id):
     error = False
     try:
         data = loads(request.data)
-        name = data.get('name')
+        name = data.get('name', None)
         user = User.query.get(id)
         user.name = name
         user.update()
@@ -82,7 +91,7 @@ def update_user(id):
         db.session.close()
 
     if error: 
-        body = {'success': False}
+        return abort(500)
     return jsonify(body)
 
 
@@ -114,14 +123,10 @@ def search_users():
     search_term = request.args.get('q', '', type=str)
     search_result = User.query.filter(User.name.ilike(f'%{search_term}%'))
     
-    body = None
     if search_result is not None:
-        body = {
-            'success': True,
+        return jsonify({
+            'success': True, 
             'users': [user.format() for user in search_result]
-        }
+        })
     else:
-        body = {
-            'success': False
-        }
-    return jsonify(body)
+        return abort(404)

@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy(app)
 
+
 class User(db.Model):
     __tablename__ = 'users'
     
@@ -29,5 +30,6 @@ class User(db.Model):
 
     def __repr__(self):
         return f'<User {self.id} {self.name}>'
+
 
 db.create_all()
