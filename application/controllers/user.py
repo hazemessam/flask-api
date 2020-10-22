@@ -1,5 +1,5 @@
 from application import app
-from application.models import db, User
+from application.models.user import db, User
 from flask import request, jsonify, abort
 from json import loads
 
